@@ -33,6 +33,13 @@ class UserLogin(BaseModel):
     password: str
 
 
+class UserInfo(BaseModel):
+    id: int
+    sub: str
+    role: str
+    exp: int
+
+
 class PaginatedUserResponse(BaseModel):
     page: int
     page_size: int

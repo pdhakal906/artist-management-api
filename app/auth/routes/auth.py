@@ -1,9 +1,10 @@
 # routes/auth.py
 from fastapi import APIRouter, Depends, HTTPException, Path
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
-from auth.jwt import create_access_token
+from auth.jwt import create_access_token, decode_access_token
 from auth.utils import verify_password
 from auth.schemas.token import Token
+from auth.schemas.users import UserLogin
 from auth.services.users import (
     get_user_by_email,
     get_all_users,
@@ -16,6 +17,11 @@ from auth.services.users import (
 from auth.schemas.users import UserOut, UserSignup, PaginatedUserResponse, UserUpdate
 from fastapi import Query
 from passlib.context import CryptContext
+from fastapi.security import APIKeyHeader
+from middlewares.user_check import is_superadmin, is_manager, is_artist
+
+header_scheme = APIKeyHeader(name="Authorization", auto_error=False)
+
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="auth/token")
 
@@ -46,9 +52,9 @@ async def signup(user: UserSignup):
 
 
 @router.post("/login", response_model=Token)
-async def login(form_data: OAuth2PasswordRequestForm = Depends()):
-    user = await get_user_by_email(form_data.username)
-    if not user or not verify_password(form_data.password, user["password"]):
+async def login(data: UserLogin):
+    user = await get_user_by_email(data.email)
+    if not user or not verify_password(data.password, user["password"]):
         raise HTTPException(status_code=400, detail="Incorrect username or password")
 
     token = create_access_token(
@@ -57,8 +63,27 @@ async def login(form_data: OAuth2PasswordRequestForm = Depends()):
     return {"access_token": token, "token_type": "bearer"}
 
 
-@router.get("/users", response_model=PaginatedUserResponse)
-async def list_users(page: int = Query(1, ge=1), page_size: int = Query(10, le=100)):
+@router.get(
+    "/users",
+    response_model=PaginatedUserResponse,
+)
+async def list_users(
+    page: int = Query(1, ge=1),
+    page_size: int = Query(10, le=100),
+    token: str = Depends(header_scheme),
+):
+    if not token:
+        raise HTTPException(status_code=401, detail="Unauthorized")
+    userInfo = decode_access_token(token)
+
+    if not userInfo:
+        raise HTTPException(status_code=401, detail="Unauthorized")
+
+    if not is_superadmin(userInfo):
+        raise HTTPException(
+            status_code=403, detail="You are not allowed to access this resource"
+        )
+
     rows = await get_all_users(page, page_size)
     total_users = await get_users_count()
     total_pages = (total_users + page_size - 1) // page_size
@@ -89,6 +114,13 @@ async def list_users(page: int = Query(1, ge=1), page_size: int = Query(10, le=1
     )
 
 
+@router.get("/users/page-data")
+async def get_page_data():
+    user_roles = ["super_admin", "artist_manager", "artist"]
+
+    return {"roles": user_roles}
+
+
 @router.put("/users/{user_id}", response_model=UserOut)
 async def update(user_id: int = Path(..., ge=1), user: UserUpdate = ...):
 
@@ -109,7 +141,18 @@ async def update(user_id: int = Path(..., ge=1), user: UserUpdate = ...):
 
 
 @router.delete("/users/{user_id}", status_code=204)
-async def delete(user_id: int = Path(..., ge=1)):
+async def delete(user_id: int = Path(..., ge=1), token: str = Depends(header_scheme)):
+    if not token:
+        raise HTTPException(status_code=401, detail="Unauthorized")
+    userInfo = decode_access_token(token)
+
+    if not userInfo:
+        raise HTTPException(status_code=401, detail="Unauthorized")
+
+    if not is_superadmin(userInfo):
+        raise HTTPException(
+            status_code=403, detail="You are not allowed to access this resource"
+        )
 
     existing_user = await get_user_by_id(user_id)
     if not existing_user:
