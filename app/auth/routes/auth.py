@@ -1,6 +1,5 @@
 # routes/auth.py
 from fastapi import APIRouter, Depends, HTTPException, Path
-from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from auth.jwt import create_access_token, decode_access_token
 from auth.utils import verify_password
 from auth.schemas.token import Token
@@ -17,13 +16,7 @@ from auth.services.users import (
 from auth.schemas.users import UserOut, UserSignup, PaginatedUserResponse, UserUpdate
 from fastapi import Query
 from passlib.context import CryptContext
-from fastapi.security import APIKeyHeader
 from middlewares.user_check import is_superadmin, is_manager, is_artist
-
-header_scheme = APIKeyHeader(name="Authorization", auto_error=False)
-
-
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="auth/token")
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
@@ -70,15 +63,8 @@ async def login(data: UserLogin):
 async def list_users(
     page: int = Query(1, ge=1),
     page_size: int = Query(10, le=100),
-    token: str = Depends(header_scheme),
+    userInfo: dict = Depends(decode_access_token),
 ):
-    if not token:
-        raise HTTPException(status_code=401, detail="Unauthorized")
-    userInfo = decode_access_token(token)
-
-    if not userInfo:
-        raise HTTPException(status_code=401, detail="Unauthorized")
-
     if not is_superadmin(userInfo):
         raise HTTPException(
             status_code=403, detail="You are not allowed to access this resource"
@@ -141,14 +127,10 @@ async def update(user_id: int = Path(..., ge=1), user: UserUpdate = ...):
 
 
 @router.delete("/users/{user_id}", status_code=204)
-async def delete(user_id: int = Path(..., ge=1), token: str = Depends(header_scheme)):
-    if not token:
-        raise HTTPException(status_code=401, detail="Unauthorized")
-    userInfo = decode_access_token(token)
-
-    if not userInfo:
-        raise HTTPException(status_code=401, detail="Unauthorized")
-
+async def delete(
+    user_id: int = Path(..., ge=1),
+    userInfo: dict = Depends(decode_access_token),
+):
     if not is_superadmin(userInfo):
         raise HTTPException(
             status_code=403, detail="You are not allowed to access this resource"

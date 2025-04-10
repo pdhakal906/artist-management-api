@@ -1,69 +1,63 @@
-from fastapi import APIRouter, Depends, HTTPException, Path, Query
-from passlib.context import CryptContext
-from fastapi.security import APIKeyHeader
-from fastapi.security import OAuth2PasswordBearer
-
-from auth.jwt import create_access_token, decode_access_token
-from auth.utils import verify_password
-from auth.schemas.token import Token
+from fastapi import APIRouter, HTTPException, Depends, Path, Query
+from auth.jwt import decode_access_token
 from schemas.artist import (
     ArtistCreate,
-    ArtistBase,
     ArtistOut,
     ArtistUpdate,
     PaginatedArtistResponse,
 )
 from middlewares.user_check import is_superadmin, is_manager, is_artist
+from services.artist import (
+    create_artist,
+    get_artist_by_id,
+    get_artists_count,
+    get_all_artist,
+)
 
-header_scheme = APIKeyHeader(name="Authorization", auto_error=False)
-
-
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="auth/token")
-
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 router = APIRouter()
 
 
-@router.post("/artist")
-async def create(artist: ArtistCreate, token: str = Depends(header_scheme)):
-    print(artist.name)
-    return {"message": "Artist created successfully"}
+@router.post("/artist", response_model=ArtistOut)
+async def create(artist: ArtistCreate):
+    artist = await create_artist(artist)
+    return dict(artist)
 
 
-@router.get(
-    "/artist",
-    response_model=PaginatedArtistResponse,
-)
-async def list_users(
+@router.get("/artist", response_model=PaginatedArtistResponse)
+async def list(
     page: int = Query(1, ge=1),
     page_size: int = Query(10, le=100),
-    token: str = Depends(header_scheme),
 ):
-    if not token:
-        raise HTTPException(status_code=401, detail="Unauthorized")
-    userInfo = decode_access_token(token)
-
-    if not userInfo:
-        raise HTTPException(status_code=401, detail="Unauthorized")
-
-    if not is_superadmin(userInfo):
-        raise HTTPException(
-            status_code=403, detail="You are not allowed to access this resource"
+    rows = await get_all_artist(page, page_size)
+    total_artist = await get_artists_count()
+    total_pages = (total_artist + page_size - 1) // page_size
+    artists = []
+    for row in rows:
+        artists.append(
+            ArtistOut(
+                id=row[0],
+                name=row[1],
+                dob=str(row[2]),
+                gender=row[3],
+                address=row[4],
+                first_release_year=row[5],
+                no_of_albums_released=row[6],
+                created_at=str(row[7]),
+                updated_at=str(row[8]),
+            )
         )
-
     return PaginatedArtistResponse(
         page=page,
         page_size=page_size,
-        total_artist=None,
-        total_pages=None,
-        users=None,
+        total_artist=total_artist,
+        total_pages=total_pages,
+        artists=artists,
     )
 
 
 @router.get("/artist/page-data")
-async def get_page_data():
-
+async def page_data():
     return {"message": "page data here"}
 
 
@@ -74,15 +68,13 @@ async def update(artist_id: int = Path(..., ge=1), artist: ArtistUpdate = ...):
 
 
 @router.delete("/artist/{user_id}", status_code=204)
-async def delete(user_id: int = Path(..., ge=1), token: str = Depends(header_scheme)):
-    if not token:
-        raise HTTPException(status_code=401, detail="Unauthorized")
-    userInfo = decode_access_token(token)
+async def delete(user_id: int = Path(..., ge=1)):
+    pass
 
-    if not userInfo:
-        raise HTTPException(status_code=401, detail="Unauthorized")
+    # if not userInfo:
+    #     raise HTTPException(status_code=401, detail="Unauthorized")
 
-    if not is_superadmin(userInfo):
-        raise HTTPException(
-            status_code=403, detail="You are not allowed to access this resource"
-        )
+    # if not is_superadmin(userInfo):
+    #     raise HTTPException(
+    #         status_code=403, detail="You are not allowed to access this resource"
+    #     )

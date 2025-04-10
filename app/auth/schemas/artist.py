@@ -12,18 +12,14 @@ class ArtistBase(BaseModel):
     no_of_albums_released: int
 
 
-class ArtistOut(ArtistBase):
-    id: int
-    created_at: datetime
-    updated_at: datetime
-
-
 class ArtistCreate(ArtistBase):
     pass
 
 
-class ArtistUpdate(ArtistBase):
-    pass
+class ArtistOut(ArtistBase):
+    id: int
+    created_at: str
+    updated_at: str
 
 
 class PaginatedArtistResponse(BaseModel):
@@ -31,4 +27,4 @@ class PaginatedArtistResponse(BaseModel):
     page_size: int
     total_artist: int
     total_pages: int
-    artists: List[ArtistOut]
+    users: List[ArtistOut]
