@@ -12,6 +12,8 @@ from services.artist import (
     get_artist_by_id,
     get_artists_count,
     get_all_artist,
+    update_artist,
+    delete_artist,
 )
 
 
@@ -63,18 +65,27 @@ async def page_data():
 
 @router.put("/artist/{artist_id}", response_model=ArtistOut)
 async def update(artist_id: int = Path(..., ge=1), artist: ArtistUpdate = ...):
+    existing_artist = await get_artist_by_id(artist_id)
+    if not existing_artist:
+        raise HTTPException(status_code=404, detail="Artist not found")
 
-    return {"message": "Artist updated successfully"}
+    updated_artist = await update_artist(artist_id, artist)
+    updated_artist["created_at"] = str(updated_artist["created_at"])
+    updated_artist["updated_at"] = str(updated_artist["updated_at"])
+
+    return updated_artist
 
 
-@router.delete("/artist/{user_id}", status_code=204)
-async def delete(user_id: int = Path(..., ge=1)):
-    pass
-
-    # if not userInfo:
-    #     raise HTTPException(status_code=401, detail="Unauthorized")
-
-    # if not is_superadmin(userInfo):
-    #     raise HTTPException(
-    #         status_code=403, detail="You are not allowed to access this resource"
-    #     )
+@router.delete("/artist/{artist_id}", status_code=204)
+async def delete(
+    artist_id: int = Path(..., ge=1),
+    userInfo: dict = Depends(decode_access_token),
+):
+    if not is_superadmin(userInfo):
+        raise HTTPException(
+            status_code=403, detail="You are not allowed to access this resource"
+        )
+    existing_artist = await get_artist_by_id(artist_id)
+    if not existing_artist:
+        raise HTTPException(status_code=404, detail="Artist not found")
+    await delete_artist(artist_id)

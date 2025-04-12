@@ -57,7 +57,7 @@ async def get_all_artist(page: int, page_size: int):
         await conn.close()
 
 
-async def update_user(artist_id: int, artist: ArtistUpdate):
+async def update_artist(artist_id: int, artist: ArtistUpdate):
     conn = await connect_db()
 
     try:
