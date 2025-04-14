@@ -1,4 +1,5 @@
 from db.database import connect_db
+from asyncpg import InvalidTextRepresentationError
 from auth.schemas.users import UserUpdate
 
 
@@ -15,10 +16,10 @@ async def create_user(
 ):
     conn = await connect_db()
     try:
-        await conn.execute(
+        user = await conn.fetchrow(
             """
             INSERT INTO users (first_name, last_name, email, password, role, phone, dob, gender, address)
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING id, first_name, last_name, email, role, phone, dob, gender, address, created_at, updated_at
         """,
             first_name,
             last_name,
@@ -30,6 +31,10 @@ async def create_user(
             gender,
             address,
         )
+        return user if user else None
+    except InvalidTextRepresentationError as e:
+        raise ValueError(str(e))
+
     finally:
         await conn.close()
 
@@ -45,7 +50,10 @@ async def get_user_by_email(email: str):
 async def get_user_by_id(user_id: int):
     conn = await connect_db()
     try:
-        return await conn.fetchrow("SELECT * FROM users WHERE id = $1", user_id)
+        return await conn.fetchrow(
+            "SELECT id,email,first_name,last_name,dob,role,phone,gender,address,created_at,updated_at FROM users WHERE id = $1",
+            user_id,
+        )
     finally:
         await conn.close()
 
@@ -65,7 +73,7 @@ async def get_all_users(page: int, page_size: int):
         query = """
           SELECT id, first_name, last_name, email, role, phone, dob, gender, address, created_at, updated_at
           FROM users
-          ORDER BY id
+          ORDER BY id DESC
           LIMIT $1 OFFSET $2
       """
         return await conn.fetch(query, page_size, offset)

@@ -24,8 +24,13 @@ class UserSignup(UserBase):
     password: str
 
 
-class UserUpdate(UserBase):
-    password: str
+class UserUpdate(BaseModel):
+    first_name: str
+    last_name: str
+    dob: datetime
+    phone: str
+    gender: str
+    address: str
 
 
 class UserLogin(BaseModel):

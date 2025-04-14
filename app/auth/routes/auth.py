@@ -30,18 +30,21 @@ async def signup(user: UserSignup):
         raise HTTPException(status_code=400, detail="Email already registered")
 
     hashed_password = pwd_context.hash(user.password)
-    await create_user(
-        user.first_name,
-        user.last_name,
-        user.email,
-        hashed_password,
-        user.role,
-        user.phone,
-        user.dob,
-        user.gender,
-        user.address,
-    )
-    return {"message": "User created successfully"}
+    try:
+        user = await create_user(
+            user.first_name,
+            user.last_name,
+            user.email,
+            hashed_password,
+            user.role,
+            user.phone,
+            user.dob,
+            user.gender,
+            user.address,
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    return {"user": dict(user)}
 
 
 @router.post("/login", response_model=Token)
@@ -107,6 +110,30 @@ async def get_page_data():
     return {"roles": user_roles}
 
 
+@router.get(
+    "/users/{user_id}",
+    response_model=UserOut,
+)
+async def get_user(
+    user_id: int = Path(..., ge=1),
+    userInfo: dict = Depends(decode_access_token),
+):
+    if not is_superadmin(userInfo):
+        raise HTTPException(
+            status_code=403, detail="You are not allowed to access this resource"
+        )
+
+    user = await get_user_by_id(user_id)
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    user = dict(user)
+
+    user["created_at"] = str(user["created_at"])
+    user["updated_at"] = str(user["updated_at"])
+
+    return UserOut(**user)
+
+
 @router.put("/users/{user_id}", response_model=UserOut)
 async def update(user_id: int = Path(..., ge=1), user: UserUpdate = ...):
 
@@ -116,9 +143,9 @@ async def update(user_id: int = Path(..., ge=1), user: UserUpdate = ...):
 
     update_data = user.model_dump(exclude_unset=True)
 
-    hashed_password = pwd_context.hash(update_data["password"])
-    update_data["password"] = hashed_password
-    update_data["dob"] = update_data["dob"].replace(tzinfo=None)
+    # hashed_password = pwd_context.hash(update_data["password"])
+    # update_data["password"] = hashed_password
+    # update_data["dob"] = update_data["dob"].replace(tzinfo=None)
     updated_data = await update_user(user_id, UserUpdate(**update_data))
     updated_data["dob"] = str(updated_data["dob"])
     updated_data["created_at"] = str(updated_data["created_at"])

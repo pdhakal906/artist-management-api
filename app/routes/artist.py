@@ -58,6 +58,28 @@ async def list(
     )
 
 
+@router.get(
+    "/artist/{artist_id}",
+    response_model=ArtistOut,
+)
+async def get_artist(
+    artist_id: int = Path(..., ge=1),
+    userInfo: dict = Depends(decode_access_token),
+):
+    if not is_superadmin(userInfo) and not is_manager(userInfo):
+        raise HTTPException(
+            status_code=403, detail="You are not allowed to access this resource"
+        )
+    artist = await get_artist_by_id(artist_id)
+    if not artist:
+        raise HTTPException(status_code=404, detail="Artist not found")
+
+    artist = dict(artist)
+    artist["created_at"] = str(artist["created_at"])
+    artist["updated_at"] = str(artist["updated_at"])
+    return ArtistOut(**artist)
+
+
 @router.get("/artist/page-data")
 async def page_data():
     return {"message": "page data here"}

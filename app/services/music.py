@@ -58,7 +58,7 @@ async def get_all_music(page: int, page_size: int):
     try:
         offset = (page - 1) * 10
         query = """
-          SELECT * FROM music ORDER BY id LIMIT $1 OFFSET $2
+          SELECT * FROM music ORDER BY id DESC LIMIT $1 OFFSET $2
       """
         return await conn.fetch(query, page_size, offset)
     finally:

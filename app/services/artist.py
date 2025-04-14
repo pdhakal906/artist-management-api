@@ -50,7 +50,7 @@ async def get_all_artist(page: int, page_size: int):
     try:
         offset = (page - 1) * 10
         query = """
-          SELECT * FROM artist ORDER BY id LIMIT $1 OFFSET $2
+          SELECT * FROM artist ORDER BY id DESC LIMIT $1 OFFSET $2
       """
         return await conn.fetch(query, page_size, offset)
     finally:
@@ -68,6 +68,8 @@ async def update_artist(artist_id: int, artist: ArtistUpdate):
 
         for key, value in artist.model_dump(exclude_unset=True).items():
             update_fields.append(f"{key} = ${index}")
+            if key == "dob":
+                value = value.replace(tzinfo=None)
             values.append(value)
             index += 1
 
