@@ -31,6 +31,8 @@ class ArtistCreate(ArtistBase):
 
 class ArtistUpdate(BaseModel):
     user_id: int
+    first_release_year: int
+    no_of_albums_released: int
     first_name: str
     last_name: str
     phone: str

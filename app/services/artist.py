@@ -155,6 +155,7 @@ async def get_all_artists_without_pagination():
 
 
 async def update_artist(artist_id: int, artist: ArtistUpdate):
+    print(artist)
     conn = await connect_db()
     try:
         async with conn.transaction():
@@ -165,37 +166,36 @@ async def update_artist(artist_id: int, artist: ArtistUpdate):
                 return None
             user_id = artist_row["user_id"]
 
-            artist_fields = []
-            artist_values = []
-            user_fields = []
-            user_values = []
-
-            index = 1
+            artist_data = []
+            user_data = []
 
             for key, value in artist.model_dump(exclude_unset=True).items():
                 if key in {"first_release_year", "no_of_albums_released"}:
-                    artist_fields.append(f"{key} = ${index}")
-                    artist_values.append(value)
-                    index += 1
+                    artist_data.append((key, value))
                 elif key in {"first_name", "last_name", "phone", "gender", "address"}:
-                    user_fields.append(f"{key} = ${index}")
-                    user_values.append(value)
-                    index += 1
+                    user_data.append((key, value))
 
-            if artist_fields:
+            if artist_data:
+                artist_fields = [
+                    f"{key} = ${i+1}" for i, (key, _) in enumerate(artist_data)
+                ]
+                artist_values = [value for _, value in artist_data]
                 artist_values.append(artist_id)
                 artist_query = f"""
                     UPDATE artist SET {', '.join(artist_fields)}
-                    WHERE id = ${index}
+                    WHERE id = ${len(artist_values)}
                 """
                 await conn.execute(artist_query, *artist_values)
-                index += 1
 
-            if user_fields:
+            if user_data:
+                user_fields = [
+                    f"{key} = ${i+1}" for i, (key, _) in enumerate(user_data)
+                ]
+                user_values = [value for _, value in user_data]
                 user_values.append(user_id)
                 user_query = f"""
                     UPDATE users SET {', '.join(user_fields)}
-                    WHERE id = ${index}
+                    WHERE id = ${len(user_values)}
                 """
                 await conn.execute(user_query, *user_values)
 
@@ -245,5 +245,16 @@ async def delete_artist(artist_id: int):
             user_id = user_row["user_id"]
             await conn.execute("DELETE FROM users WHERE id = $1", user_id)
 
+    finally:
+        await conn.close()
+
+
+async def get_artist_by_user_id(user_id: int):
+    conn = await connect_db()
+    try:
+        query = """
+            SELECT artist.id FROM artist JOIN users ON artist.user_id = users.id WHERE artist.user_id = $1
+        """
+        return await conn.fetchrow(query, user_id)
     finally:
         await conn.close()

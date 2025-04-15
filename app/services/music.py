@@ -1,4 +1,5 @@
 from db.database import connect_db
+from services.artist import get_artist_by_user_id
 from schemas.music import (
     MusicCreate,
     MusicUpdate,
@@ -43,6 +44,18 @@ async def get_music_by_artist_id(artist_id: int, page: int, page_size: int):
             page_size,
             offset,
         )
+    finally:
+        await conn.close()
+
+
+async def get_music_by_user_id(user_id: int, page: int, page_size: int):
+    conn = await connect_db()
+    try:
+        row = await get_artist_by_user_id(user_id)
+        artist_id = row.get("id")
+        if not artist_id:
+            return
+        return await get_music_by_artist_id(artist_id, page, page_size)
     finally:
         await conn.close()
 

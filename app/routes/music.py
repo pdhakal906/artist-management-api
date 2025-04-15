@@ -17,14 +17,21 @@ from services.music import (
     update_music,
     delete_music,
     get_music_by_artist_count,
+    get_music_by_user_id,
 )
+from services.artist import get_artist_by_user_id
 
 
 router = APIRouter()
 
 
 @router.post("/music", response_model=MusicOut)
-async def create(music: MusicCreate):
+async def create(music: MusicCreate, userInfo: dict = Depends(decode_access_token)):
+    if is_artist(userInfo):
+        user_id = userInfo.get("id")
+        row = await get_artist_by_user_id(user_id)
+        artist_id = row[0]
+        music.artist_id = artist_id
     music = await create_music(music)
     return dict(music)
 
@@ -33,7 +40,33 @@ async def create(music: MusicCreate):
 async def list(
     page: int = Query(1, ge=1),
     page_size: int = Query(10, le=100),
+    userInfo: dict = Depends(decode_access_token),
 ):
+    if userInfo["role"] == "artist":
+        rows = await get_music_by_user_id(userInfo["id"], page, page_size)
+        total_music = len(rows)
+        total_pages = (total_music + page_size - 1) // page_size
+        music = []
+        for row in rows:
+            music.append(
+                MusicOut(
+                    id=row[0],
+                    artist_id=row[1],
+                    title=str(row[2]),
+                    album_name=row[3],
+                    genre=row[4],
+                    created_at=str(row[5]),
+                    updated_at=str(row[6]),
+                )
+            )
+        return PaginatedMusicResponse(
+            page=page,
+            page_size=page_size,
+            total_music=total_music,
+            total_pages=total_pages,
+            music=music,
+        )
+
     rows = await get_all_music(page, page_size)
     total_music = await get_music_count()
     total_pages = (total_music + page_size - 1) // page_size
@@ -86,7 +119,6 @@ async def get_music_by_artist(
     total_music = await get_music_by_artist_count(artist_id)
     total_pages = (total_music + page_size - 1) // page_size
     music = []
-    print(rows)
     if rows:
         for row in rows:
             music.append(
@@ -110,7 +142,18 @@ async def get_music_by_artist(
 
 
 @router.put("/music/{music_id}", response_model=MusicOut)
-async def update(music_id: int = Path(..., ge=1), music: MusicUpdate = ...):
+async def update(
+    music_id: int = Path(..., ge=1),
+    userInfo: dict = Depends(decode_access_token),
+    music: MusicUpdate = ...,
+):
+
+    if is_artist(userInfo):
+        user_id = userInfo.get("id")
+        row = await get_artist_by_user_id(user_id)
+        artist_id = row[0]
+        music.artist_id = artist_id
+
     existing_music = await get_music_by_id(music_id)
     if not existing_music:
         raise HTTPException(status_code=404, detail="Music not found")
@@ -145,11 +188,17 @@ async def delete(
     music_id: int = Path(..., ge=1),
     userInfo: dict = Depends(decode_access_token),
 ):
-    if not is_superadmin(userInfo) and not is_manager(userInfo):
-        raise HTTPException(
-            status_code=403, detail="You are not allowed to access this resource"
-        )
     existing_music = await get_music_by_id(music_id)
+
     if not existing_music:
         raise HTTPException(status_code=404, detail="Music not found")
+    if is_artist(userInfo):
+        user_id = userInfo.get("id")
+        row = await get_artist_by_user_id(user_id)
+        artist_id = row[0]
+        if artist_id != existing_music[1]:  # existing_music[1] is artist_id
+            raise HTTPException(
+                status_code=403, detail="You are not authorized to delete this music"
+            )
+
     await delete_music(music_id)

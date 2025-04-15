@@ -159,6 +159,9 @@ async def delete(
         )
 
     existing_user = await get_user_by_id(user_id)
+    existing_user = dict(existing_user)
+    if existing_user.get("role") == "super_admin":
+        raise HTTPException(status_code=403, detail="Cannot delete super admin user")
     if not existing_user:
         raise HTTPException(status_code=404, detail="User not found")
 
