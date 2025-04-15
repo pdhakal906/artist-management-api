@@ -14,7 +14,7 @@ async def init_db():
         with open("models/models.sql", "r") as f:
             sql = f.read()
         await conn.execute(sql)
-        print("✅ Database initialized successfully.")
+        print("Database initialized successfully.")
     finally:
         await conn.close()
 

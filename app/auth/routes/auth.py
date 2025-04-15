@@ -1,4 +1,3 @@
-# routes/auth.py
 from fastapi import APIRouter, Depends, HTTPException, Path
 from auth.jwt import create_access_token, decode_access_token
 from auth.utils import verify_password
@@ -142,10 +141,6 @@ async def update(user_id: int = Path(..., ge=1), user: UserUpdate = ...):
         raise HTTPException(status_code=404, detail="User not found")
 
     update_data = user.model_dump(exclude_unset=True)
-
-    # hashed_password = pwd_context.hash(update_data["password"])
-    # update_data["password"] = hashed_password
-    # update_data["dob"] = update_data["dob"].replace(tzinfo=None)
     updated_data = await update_user(user_id, UserUpdate(**update_data))
     updated_data["dob"] = str(updated_data["dob"])
     updated_data["created_at"] = str(updated_data["created_at"])

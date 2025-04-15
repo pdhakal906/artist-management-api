@@ -2,8 +2,6 @@ from db.database import connect_db
 from schemas.music import (
     MusicCreate,
     MusicUpdate,
-    PaginatedMusicResponse,
-    MusicOut,
 )
 
 

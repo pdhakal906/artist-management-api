@@ -13,15 +13,14 @@ class ArtistOut(ArtistBase):
     id: int
     created_at: datetime
     updated_at: datetime
-    # User fields (flattened)
     first_name: str
     last_name: str
     email: EmailStr
     phone: str
     dob: datetime
-    gender: str  # or Literal["male", "female", "other"]
+    gender: str
     address: str
-    role: str  # or Literal["super_admin", "artist_manager", "artist"]
+    role: str
     user_created_at: datetime
     user_updated_at: datetime
 
@@ -36,7 +35,7 @@ class ArtistUpdate(BaseModel):
     last_name: str
     phone: str
     dob: datetime
-    gender: str  # or Literal["male", "female", "other"]
+    gender: str
     address: str
 
 

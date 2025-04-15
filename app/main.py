@@ -1,6 +1,8 @@
+import os
 from fastapi import FastAPI, Depends, APIRouter
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import APIKeyHeader
+from fastapi.staticfiles import StaticFiles
 from auth.routes.auth import router as user_router
 from routes.artist import router as artist_router
 from routes.music import router as music_router
@@ -9,9 +11,9 @@ from auth.jwt import decode_access_token
 
 app = FastAPI(
     title="Artist Management",
-    docs_url="/api/docs",  # Swagger UI
-    redoc_url="/api/redoc",  # Optional: ReDoc
-    openapi_url="/api/openapi.json",  # Optional: OpenAPI schema path
+    docs_url="/api/docs",
+    redoc_url="/api/redoc",
+    openapi_url="/api/openapi.json",
 )
 api_router = APIRouter(prefix="/api")
 
@@ -24,6 +26,10 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+os.makedirs("static_files", exist_ok=True)
+
+app.mount("/static", StaticFiles(directory="static_files"), name="static")
 
 api_router.get("/")(lambda: {"message": "API call successful"})
 
