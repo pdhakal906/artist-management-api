@@ -11,6 +11,7 @@ from services.music import (
     create_music,
     get_music_by_id,
     get_music_by_artist_id,
+    get_music_page_data,
     get_music_count,
     get_all_music,
     update_music,
@@ -59,7 +60,18 @@ async def list(
 
 @router.get("/music/page-data")
 async def page_data():
-    return {"genre": ["rnb", "country", "classic", "rock", "jazz"]}
+    rows = await get_music_page_data()
+    rows = [dict(row) for row in rows]
+
+    rows = [
+        {
+            "value": str(row["artist_id"]),
+            "label": f"{row['first_name']} {row['last_name']}",
+        }
+        for row in rows
+    ]
+
+    return {"genre": ["rnb", "country", "classic", "rock", "jazz"], "artists": rows}
 
 
 @router.put("/music/{music_id}", response_model=MusicOut)
@@ -75,12 +87,34 @@ async def update(music_id: int = Path(..., ge=1), music: MusicUpdate = ...):
     return updated_music
 
 
+@router.get(
+    "/music/{music_id}",
+    response_model=MusicOut,
+)
+async def get_artist(
+    music_id: int = Path(..., ge=1),
+    userInfo: dict = Depends(decode_access_token),
+):
+    if not is_superadmin(userInfo) and not is_manager(userInfo):
+        raise HTTPException(
+            status_code=403, detail="You are not allowed to access this resource"
+        )
+    music = await get_music_by_id(music_id)
+    if not music:
+        raise HTTPException(status_code=404, detail="Music not found")
+
+    music = dict(music)
+    music["created_at"] = str(music["created_at"])
+    music["updated_at"] = str(music["updated_at"])
+    return MusicOut(**music)
+
+
 @router.delete("/music/{music_id}", status_code=204)
 async def delete(
     music_id: int = Path(..., ge=1),
     userInfo: dict = Depends(decode_access_token),
 ):
-    if not is_superadmin(userInfo):
+    if not is_superadmin(userInfo) and not is_manager(userInfo):
         raise HTTPException(
             status_code=403, detail="You are not allowed to access this resource"
         )

@@ -107,3 +107,19 @@ async def delete_music(music_id: int):
         return
     finally:
         await conn.close()
+
+
+async def get_music_page_data():
+    conn = await connect_db()
+    try:
+        query = """
+            SELECT 
+                artist.id AS artist_id,
+                users.first_name,
+                users.last_name
+            FROM artist
+            JOIN users ON users.id = artist.user_id
+        """
+        return await conn.fetch(query)
+    finally:
+        await conn.close()

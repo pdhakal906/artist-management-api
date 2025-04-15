@@ -34,21 +34,32 @@ async def list(
     rows = await get_all_artist(page, page_size)
     total_artist = await get_artists_count()
     total_pages = (total_artist + page_size - 1) // page_size
+
     artists = []
+
     for row in rows:
         artists.append(
             ArtistOut(
-                id=row[0],
-                name=row[1],
-                dob=str(row[2]),
-                gender=row[3],
-                address=row[4],
-                first_release_year=row[5],
-                no_of_albums_released=row[6],
-                created_at=str(row[7]),
-                updated_at=str(row[8]),
+                id=row["id"],
+                user_id=row["user_id"],
+                first_release_year=row["first_release_year"],
+                no_of_albums_released=row["no_of_albums_released"],
+                created_at=row["created_at"],
+                updated_at=row["updated_at"],
+                # user fields (flat)
+                first_name=row["first_name"],
+                last_name=row["last_name"],
+                email=row["email"],
+                phone=row["phone"],
+                dob=row["dob"],
+                gender=row["gender"],
+                address=row["address"],
+                role=row["role"],
+                user_created_at=row["user_created_at"],
+                user_updated_at=row["user_updated_at"],
             )
         )
+
     return PaginatedArtistResponse(
         page=page,
         page_size=page_size,
@@ -103,7 +114,7 @@ async def delete(
     artist_id: int = Path(..., ge=1),
     userInfo: dict = Depends(decode_access_token),
 ):
-    if not is_superadmin(userInfo):
+    if not is_superadmin(userInfo) and not is_manager(userInfo):
         raise HTTPException(
             status_code=403, detail="You are not allowed to access this resource"
         )
