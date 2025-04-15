@@ -16,6 +16,7 @@ from services.music import (
     get_all_music,
     update_music,
     delete_music,
+    get_music_by_artist_count,
 )
 
 
@@ -74,6 +75,40 @@ async def page_data():
     return {"genre": ["rnb", "country", "classic", "rock", "jazz"], "artists": rows}
 
 
+@router.get("/music/artist/{artist_id}", response_model=PaginatedMusicResponse)
+async def get_music_by_artist(
+    page: int = Query(1, ge=1),
+    page_size: int = Query(10, le=100),
+    artist_id: int = Path(..., ge=1),
+    userInfo: dict = Depends(decode_access_token),
+):
+    rows = await get_music_by_artist_id(artist_id, page, page_size)
+    total_music = await get_music_by_artist_count(artist_id)
+    total_pages = (total_music + page_size - 1) // page_size
+    music = []
+    print(rows)
+    if rows:
+        for row in rows:
+            music.append(
+                MusicOut(
+                    id=row[0],
+                    artist_id=row[1],
+                    title=str(row[2]),
+                    album_name=row[3],
+                    genre=row[4],
+                    created_at=str(row[5]),
+                    updated_at=str(row[6]),
+                )
+            )
+    return PaginatedMusicResponse(
+        page=page,
+        page_size=page_size,
+        total_music=total_music,
+        total_pages=total_pages,
+        music=music,
+    )
+
+
 @router.put("/music/{music_id}", response_model=MusicOut)
 async def update(music_id: int = Path(..., ge=1), music: MusicUpdate = ...):
     existing_music = await get_music_by_id(music_id)
@@ -95,10 +130,6 @@ async def get_artist(
     music_id: int = Path(..., ge=1),
     userInfo: dict = Depends(decode_access_token),
 ):
-    if not is_superadmin(userInfo) and not is_manager(userInfo):
-        raise HTTPException(
-            status_code=403, detail="You are not allowed to access this resource"
-        )
     music = await get_music_by_id(music_id)
     if not music:
         raise HTTPException(status_code=404, detail="Music not found")

@@ -34,31 +34,29 @@ async def list(
     rows = await get_all_artist(page, page_size)
     total_artist = await get_artists_count()
     total_pages = (total_artist + page_size - 1) // page_size
-
     artists = []
-
-    for row in rows:
-        artists.append(
-            ArtistOut(
-                id=row["id"],
-                user_id=row["user_id"],
-                first_release_year=row["first_release_year"],
-                no_of_albums_released=row["no_of_albums_released"],
-                created_at=row["created_at"],
-                updated_at=row["updated_at"],
-                # user fields (flat)
-                first_name=row["first_name"],
-                last_name=row["last_name"],
-                email=row["email"],
-                phone=row["phone"],
-                dob=row["dob"],
-                gender=row["gender"],
-                address=row["address"],
-                role=row["role"],
-                user_created_at=row["user_created_at"],
-                user_updated_at=row["user_updated_at"],
+    if rows:
+        for row in rows:
+            artists.append(
+                ArtistOut(
+                    id=row["id"],
+                    user_id=row["user_id"],
+                    first_release_year=row["first_release_year"],
+                    no_of_albums_released=row["no_of_albums_released"],
+                    created_at=row["created_at"],
+                    updated_at=row["updated_at"],
+                    first_name=row["first_name"],
+                    last_name=row["last_name"],
+                    email=row["email"],
+                    phone=row["phone"],
+                    dob=row["dob"],
+                    gender=row["gender"],
+                    address=row["address"],
+                    role=row["role"],
+                    user_created_at=row["user_created_at"],
+                    user_updated_at=row["user_updated_at"],
+                )
             )
-        )
 
     return PaginatedArtistResponse(
         page=page,
@@ -89,11 +87,6 @@ async def get_artist(
     artist["created_at"] = str(artist["created_at"])
     artist["updated_at"] = str(artist["updated_at"])
     return ArtistOut(**artist)
-
-
-@router.get("/artist/page-data")
-async def page_data():
-    return {"message": "page data here"}
 
 
 @router.put("/artist/{artist_id}", response_model=ArtistOut)

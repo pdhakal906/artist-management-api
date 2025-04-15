@@ -35,11 +35,15 @@ async def get_music_by_id(id: int):
         await conn.close()
 
 
-async def get_music_by_artist_id(artist_id: int):
+async def get_music_by_artist_id(artist_id: int, page: int, page_size: int):
     conn = await connect_db()
     try:
-        return await conn.fetchrow(
-            "SELECT * FROM music WHERE artist_id = $1", artist_id
+        offset = (page - 1) * 10
+        return await conn.fetch(
+            "SELECT * FROM music WHERE artist_id = $1 ORDER BY id DESC LIMIT $2 OFFSET $3",
+            artist_id,
+            page_size,
+            offset,
         )
     finally:
         await conn.close()
@@ -49,6 +53,16 @@ async def get_music_count():
     conn = await connect_db()
     try:
         return await conn.fetchval("SELECT COUNT(*) FROM music")
+    finally:
+        await conn.close()
+
+
+async def get_music_by_artist_count(artist_id: int):
+    conn = await connect_db()
+    try:
+        return await conn.fetchval(
+            "SELECT COUNT(*) FROM music WHERE artist_id = $1", artist_id
+        )
     finally:
         await conn.close()
 
